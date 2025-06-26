@@ -37,16 +37,19 @@ class ASR(sb.core.Brain):
         """Forward computations from the waveform batches to the output probabilities."""
         batch = batch.to(self.device)
         wavs, wav_lens = batch.sig
-
+        
         # Add waveform augmentation if specified.
         if stage == sb.Stage.TRAIN and hasattr(self.hparams, "wav_augment"):
             wavs, wav_lens = self.hparams.wav_augment(wavs, wav_lens)
-
+        
         # compute features
         feats = self.hparams.compute_features(wavs)
         current_epoch = self.hparams.epoch_counter.current
         feats = self.modules.normalize(feats, wav_lens, epoch=current_epoch)
-
+        
+        # Recover to actual/absolute length
+        # wav_lens = (wav_lens * wavs.shape[1]).round().long()
+        
         # forward modules
         enc_out, _ = self.modules.Squeezeformer(feats, wav_lens)
 
@@ -61,7 +64,7 @@ class ASR(sb.core.Brain):
             )
         elif stage == sb.Stage.TEST:
             p_tokens = test_searcher(p_ctc, wav_lens)
-
+        
         return p_ctc, wav_lens, p_tokens
 
     def compute_objectives(self, predictions, batch, stage):
@@ -71,12 +74,15 @@ class ASR(sb.core.Brain):
 
         ids = batch.id
         tokens, tokens_lens = batch.tokens
-
+        
         # Label Augmentation
         if stage == sb.Stage.TRAIN and hasattr(self.hparams, "wav_augment"):
             tokens = self.hparams.wav_augment.replicate_labels(tokens)
             tokens_lens = self.hparams.wav_augment.replicate_labels(tokens_lens)
-
+        
+        # Recover to actual/absolute length
+        # tokens_lens = (tokens_lens * tokens.shape[1]).round().long()
+        
         loss = self.hparams.ctc_cost(p_ctc, tokens, wav_lens, tokens_lens)
 
         if stage == sb.Stage.VALID:
@@ -308,7 +314,7 @@ if __name__ == "__main__":
 
     # If --distributed_launch then
     # create ddp_group with the right communication protocol
-    # sb.utils.distributed.ddp_init_group(run_opts)
+    sb.utils.distributed.ddp_init_group(run_opts)
 
     # 1.  # Dataset prep (parsing Librispeech)
     from librispeech_prepare import prepare_librispeech  # noqa
@@ -328,7 +334,7 @@ if __name__ == "__main__":
             "tr_splits": hparams["train_splits"],
             "dev_splits": hparams["dev_splits"],
             "te_splits": hparams["test_splits"],
-            "select_n_sentences": hparams["select_n_sentences"],
+	    "select_n_sentences": hparams["select_n_sentences"],
             "save_folder": hparams["output_folder"],
             "merge_lst": hparams["train_splits"],
             "merge_name": "train.csv",
