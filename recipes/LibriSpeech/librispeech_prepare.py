@@ -97,7 +97,6 @@ def prepare_librispeech(
     >>> save_folder = 'librispeech_prepared'
     >>> prepare_librispeech(data_folder, save_folder, tr_splits, dev_splits, te_splits)
     """
-
     if skip_prep:
         return
     data_folder = data_folder
@@ -142,7 +141,7 @@ def prepare_librispeech(
         all_texts.update(text_dict)
 
         if select_n_sentences is not None:
-            n_sentences = select_n_sentences[split_index]
+            n_sentences = select_n_sentences
         else:
             n_sentences = len(wav_lst)
 
