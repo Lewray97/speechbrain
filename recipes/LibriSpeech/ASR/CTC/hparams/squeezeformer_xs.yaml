@@ -1,10 +1,10 @@
 # ############################################################################
 # Model: E2E ASR with CTC
-# Encoder: Conformer Encoder
+# Encoder: Squeezeformer XS Encoder
 # Decoder: CTC beam searcher and greedy searcher
-# Tokens: character
+# Tokens: unigram
 # Training: Librispeech 960h
-# Authors: Titouan Parcollet, Shucong Zhang, Adel Moumen
+# Authors: Titouan Parcollet, Shucong Zhang, Adel Moumen, Runze Wang
 # ############################################################################
 # Seed needs to be set at top of yaml, before objects with parameters are made
 
@@ -36,12 +36,16 @@ batch_size: 16 # Batch_size 16 works for 2x GPUs with 32GB mem;
 grad_accumulation_factor: 2
 max_grad_norm: 5.0
 sorting: descending #random
+precision: fp32
 num_workers: 8
 loss_reduction: batchmean
 valid_search_interval: 1
 avg_checkpoints: 10 # Number of checkpoints to average for evaluation
 
 lr_model: 2e-3 
+n_warmup_steps: 3580
+n_keep_steps: 32220
+
 weight_decay: 0.0005
 
 # Feature parameters
@@ -61,9 +65,9 @@ enable_drop_chunk: True
 # Empirically, we used 850 * 8 A40 45G GPUs * 2 or 1700 * 4 A100 80G * 2.
 # Please, set your parameters accordingly.
 dynamic_batching: True
-max_batch_length_train: 850 # max aggregated length of all examples in a batch. As high as possible without OOM errors.
+max_batch_length_train: 800 # max aggregated length of all examples in a batch. As high as possible without OOM errors.
 max_batch_len_val: 100
-num_bucket: 200 # lower number -> better randomization. Higher number -> faster training
+num_bucket: 30 # lower number -> better randomization. Higher number -> faster training
 shuffle: False # if true re-creates batches at each epoch shuffling examples.
 max_batch_ex: 128
 batch_ordering: descending
@@ -174,8 +178,8 @@ ctc_cost: !name:speechbrain.nnet.losses.ctc_loss
 
 noam_annealing: !new:speechbrain.nnet.schedulers.LinearNoamScheduler
     lr_initial: !ref <lr_model>
-    n_warmup_steps: 7500 # 20 epochs in paper, need calculate and modify
-    n_keep_steps: 36000 # 160 epochs in paper, need calculate and modify
+    n_warmup_steps: !ref <n_warmup_steps>
+    n_keep_steps: !ref <n_keep_steps>
 
 model_opt_class: !name:torch.optim.AdamW
     lr: !ref <lr_model>
